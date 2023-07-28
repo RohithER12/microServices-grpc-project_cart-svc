@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/RohithER12/cart-svc/pkg/db"
@@ -11,19 +13,29 @@ import (
 )
 
 type Server struct {
-	H         db.Handler
-	Cart      repo.Cart
-	CartItems repo.CartItems
+	H    db.Handler
+	Cart repo.Cart
+	// CartItems repo.CartItems
 	pb.UnimplementedCartServiceServer
 }
 
-func (s *Server) AddCart(ctx context.Context, req *pb.AddCartRequest) (*pb.AddCartResponse, error) {
+// func NewServer(h db.Handler, cart repo.Cart, cartItems repo.CartItems) *Server {
+// 	return &Server{
+// 		H:         h,
+// 		Cart:      cart,
+// 		// CartItems: cartItems,
+// 	}
+// }
 
-	cart, err := s.Cart.GetByUserId(req.UserId)
+func (s *Server) AddCart(ctx context.Context, req *pb.AddCartRequest) (*pb.AddCartResponse, error) {
+	fmt.Println("--------------\n\n\n", "userid", req.UserId)
+
+	cart, err := s.Cart.GetByUserId(3)
 	if err != nil {
 		cart := models.Cart{
 			UserId: req.UserId,
 		}
+		fmt.Println("--------------\n\n\n", cart)
 		if err := s.Cart.CreateCart(cart); err != nil {
 			return &pb.AddCartResponse{
 				Status: http.StatusConflict,
@@ -31,6 +43,8 @@ func (s *Server) AddCart(ctx context.Context, req *pb.AddCartRequest) (*pb.AddCa
 			}, err
 		}
 	}
+	fmt.Println("========================\n\n\n", cart)
+
 	if cart.Id == 0 {
 		fetchCart, err := s.Cart.GetByUserId(req.UserId)
 		if err != nil {
@@ -48,7 +62,7 @@ func (s *Server) AddCart(ctx context.Context, req *pb.AddCartRequest) (*pb.AddCa
 		ProductId: req.ProductId,
 		Quantity:  req.Quantity,
 	}
-	if err := s.CartItems.AddItem(cartItem); err != nil {
+	if err := s.Cart.AddCartItem(cartItem); err != nil {
 		return &pb.AddCartResponse{
 			Status: http.StatusConflict,
 			Error:  err.Error(),
@@ -71,7 +85,7 @@ func (s *Server) RemoveCart(ctx context.Context, req *pb.RemoveCartRequest) (*pb
 		}, err
 	}
 
-	cartItem, err := s.CartItems.GetByCartIdAndProductId(cart.Id, req.ProductId)
+	cartItem, err := s.Cart.GetCartItemByCartIdAndProductId(cart.Id, req.ProductId)
 	if err != nil {
 		return &pb.RemoveCartResponse{
 			Status: http.StatusBadRequest,
@@ -79,7 +93,7 @@ func (s *Server) RemoveCart(ctx context.Context, req *pb.RemoveCartRequest) (*pb
 		}, err
 	}
 
-	if err := s.CartItems.RemoveOne(cartItem); err != nil {
+	if err := s.Cart.RemoveOneCartItem(cartItem); err != nil {
 		return &pb.RemoveCartResponse{
 			Status: http.StatusBadRequest,
 			Error:  err.Error(),
@@ -95,16 +109,16 @@ func (s *Server) DisplayCart(ctx context.Context, req *pb.DisplayCartRequest) (*
 	cart, err := s.Cart.GetByUserId(req.UserId)
 	if err != nil {
 		return &pb.DisplayCartResponse{
-			Status: http.StatusConflict,
+			Status: http.StatusNoContent,
 			Error:  err.Error(),
 		}, nil
 	}
 	carts, err := s.Cart.DisplayCart(cart.Id)
 	if err != nil {
 		return &pb.DisplayCartResponse{
-			Status: http.StatusConflict,
+			Status: http.StatusNotFound,
 			Error:  err.Error(),
-		}, nil
+		}, errors.New("nothing inside cart")
 	}
 
 	var response pb.DisplayCartResponse

@@ -10,13 +10,13 @@ import (
 	"github.com/RohithER12/cart-svc/pkg/pb"
 	"github.com/RohithER12/cart-svc/pkg/services"
 	"github.com/RohithER12/cart-svc/repo"
+	repoimpl "github.com/RohithER12/cart-svc/repo/repoImpl"
 	"github.com/google/wire"
 	"google.golang.org/grpc"
 )
 
 var cartModule = wire.NewSet(
 	repo.NewCartImpl,
-	repo.NewCartItemsImpl,
 	db.Init,
 )
 
@@ -54,6 +54,8 @@ func main() {
 }
 
 func InitializeCartImpl(h *db.Handler) repo.Cart {
-	wire.Build(cartModule)
-	return nil
+	wire.Build(repo.NewCartImpl)
+	return &repoimpl.CartImpl{
+		H: *h,
+	}
 }
